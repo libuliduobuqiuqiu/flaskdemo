@@ -3,15 +3,18 @@
     :date: 2023-10-31
     :author: linshukai
 """
-
+import pymysql
+import sqlalchemy.exc
 from flask import (
-    Blueprint, request, render_template, url_for, redirect, flash, session, g, abort
+    Blueprint, request, render_template, url_for, redirect, flash, session, g, abort, current_app
 )
 from werkzeug.security import check_password_hash, generate_password_hash
-from flasker.db import get_db
 from functools import wraps
+from flasker.model import User
+from flasker import db
+import uuid
 
-bp = Blueprint("auth", __name__, url_prefix="/auth")
+bp = Blueprint("auth", __name__, url_prefix="/auth", template_folder="templates")
 
 
 @bp.errorhandler(400)
@@ -24,7 +27,7 @@ def index():
     if g.get("user") is None:
         abort(400)
 
-    username = g.user["username"]
+    username = g.user.name
     return f"<p>Hello, {username}, Welcome to my Website."
 
 
@@ -34,7 +37,6 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        db = get_db()
         error = None
 
         if not username:
@@ -44,13 +46,18 @@ def register():
 
         if error is None:
             try:
-                db.execute(
-                    "INSERT INTO user (username, password) VALUES (?, ?)",
-                    (username, generate_password_hash(password)),
-                )
-                db.commit()
-            except db.IntegrityError:
-                error = f"User {username} is already registered."
+                user = User(id=str(uuid.uuid1()), name=username, password=generate_password_hash(password))
+                db.session.add(user)
+                db.session.commit()
+
+            except sqlalchemy.exc.IntegrityError:
+                error = "Name已存在，请重新注册"
+                db.session.rollback()
+
+            except Exception as e:
+                error = e
+                db.session.rollback()
+
             else:
                 return redirect(url_for("auth.login"))
 
@@ -65,20 +72,17 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        db = get_db()
         error = None
-        user = db.execute(
-            'SELECT * FROM user WHERE username = ?', (username,)
-        ).fetchone()
+        user = User.query.filter(User.name == username).first()
 
         if user is None:
             error = 'Incorrect username.'
-        elif not check_password_hash(user['password'], password):
+        elif not check_password_hash(user.password, password):
             error = 'Incorrect password.'
 
         if error is None:
             session.clear()
-            session['user_id'] = user['id']
+            session['user_id'] = user.id
             return redirect(url_for('auth.index'))
 
         flash(error)
@@ -89,13 +93,17 @@ def login():
 @bp.before_request
 def load_logged_in_user():
     user_id = session.get('user_id')
+    print(user_id, current_app.config['SECRET_KEY'], current_app.config['DEBUG'])
 
     if user_id is None:
         g.user = None
     else:
-        db = get_db()
-        g.user = db.execute("SELECT * FROM user where id = ?", (user_id,)).fetchone()
-        print(g.user, g.get("user"))
+        user = User.query.filter(User.id == user_id).first()
+        if user is None:
+            session.clear()
+            return redirect(url_for("auth.index"))
+
+        g.user = user
 
 
 @bp.route("/logout", methods=["GET"])
