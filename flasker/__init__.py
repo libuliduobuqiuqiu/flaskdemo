@@ -6,16 +6,15 @@
 """
 
 import os
-from flask import g
-from flask import Flask
+from flask import Flask, session, g, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 
+app = Flask(__name__, instance_relative_config=True)
 db = SQLAlchemy()
 
 
 def create_app(test_config=None):
-    app = Flask(__name__, instance_relative_config=True)
-
     # 判断传入的配置是否为空，重新载入配置
     if test_config is None:
         app.config.from_pyfile("config.py")
@@ -28,14 +27,33 @@ def create_app(test_config=None):
     except Exception as e:
         pass
 
-    @app.route("/hello", methods=["GET"])
-    def hello():
-        return "Hello,World"
-
-    from . import auth
-    app.register_blueprint(auth.bp)
-
     # 初始化SQL配置
     db.init_app(app)
 
+    # 注册路由
+    from .auth import bp as auth
+    app.register_blueprint(auth)
+
+    from .blog import bp as blog
+    app.register_blueprint(blog)
     return app
+
+
+@app.before_request
+def load_logged_in_user():
+    user_id = session.get('user_id')
+
+    if user_id is None:
+        g.user = None
+    else:
+        sql_str = text("Select * from user where id = :id")
+        user = db.session.execute(sql_str, params={"id": user_id}).first()
+        if user is None:
+            session.clear()
+            return redirect(url_for("auth.index"))
+        g.user = user
+
+
+@app.errorhandler(400)
+def handle_exception(d):
+    return f"<h1 style='color: red;'> 用户未登录，无权访问....</h1>\n<a href='{url_for('auth.login')}'>请重新登录</a>"
