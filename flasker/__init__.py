@@ -6,7 +6,7 @@
 """
 
 import os
-from flask import Flask, session, g, redirect, url_for
+from flask import Flask, session, g, redirect, url_for, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
@@ -36,13 +36,14 @@ def create_app(test_config=None):
 
     from .blog import bp as blog
     app.register_blueprint(blog)
+
+    # app.wsgi_app = AuthenticationMiddleware(app.wsgi_app)
     return app
 
 
 @app.before_request
 def load_logged_in_user():
     user_id = session.get('user_id')
-
     if user_id is None:
         g.user = None
     else:
@@ -55,5 +56,14 @@ def load_logged_in_user():
 
 
 @app.errorhandler(400)
-def handle_exception(d):
+def handle_exception(error):
     return f"<h1 style='color: red;'> 用户未登录，无权访问....</h1>\n<a href='{url_for('auth.login')}'>请重新登录</a>"
+
+
+class AuthenticationMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        response = self.app(environ, start_response)
+        return response
