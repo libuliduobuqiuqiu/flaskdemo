@@ -7,8 +7,11 @@
 
 import os
 from flask import Flask, session, g, redirect, url_for, abort
+from flask.logging import default_handler
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+from logging.handlers import TimedRotatingFileHandler
+import logging
 
 app = Flask(__name__, instance_relative_config=True)
 db = SQLAlchemy()
@@ -37,6 +40,7 @@ def create_app(test_config=None):
     from .blog import bp as blog
     app.register_blueprint(blog)
 
+    init_logger()
     # app.wsgi_app = AuthenticationMiddleware(app.wsgi_app)
     return app
 
@@ -67,3 +71,19 @@ class AuthenticationMiddleware:
     def __call__(self, environ, start_response):
         response = self.app(environ, start_response)
         return response
+
+
+def init_logger():
+
+    if not os.path.isdir("logs"):
+        os.makedirs("logs")
+
+    handler = TimedRotatingFileHandler(
+        filename="logs/flasker.log",
+        backupCount=7
+    )
+    handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    app.logger.addHandler(handler)
