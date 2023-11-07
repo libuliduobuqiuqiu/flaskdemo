@@ -5,3 +5,8 @@ instance/
 .idea/
 
 logs/
+
+uwsgi/*.log
+uwsgi/*.sock
+
+__pycache__
