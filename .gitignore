@@ -1,6 +1,7 @@
 .venv/
 
-instance/
+instance/*.sqlite
+instance/config.py
 
 .idea/
 
