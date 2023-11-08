@@ -40,6 +40,9 @@ def create_app(test_config=None):
     from .blog import bp as blog
     app.register_blueprint(blog)
 
+    from .rest import bp as rest
+    app.register_blueprint(rest)
+
     init_logger()
     # app.wsgi_app = AuthenticationMiddleware(app.wsgi_app)
     return app
@@ -74,7 +77,6 @@ class AuthenticationMiddleware:
 
 
 def init_logger():
-
     if not os.path.isdir("logs"):
         os.makedirs("logs")
 
