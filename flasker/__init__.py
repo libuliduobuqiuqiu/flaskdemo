@@ -7,7 +7,7 @@
 
 import os
 from flask import Flask, session, g, redirect, url_for, abort
-from flask.logging import default_handler
+from werkzeug.middleware.profiler import ProfilerMiddleware
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from logging.handlers import TimedRotatingFileHandler
@@ -44,7 +44,10 @@ def create_app(test_config=None):
     app.register_blueprint(rest)
 
     init_logger()
-    # app.wsgi_app = AuthenticationMiddleware(app.wsgi_app)
+    # app.wsgi_app = AuthenticationMiddleware(app.wsgi_app)\
+
+    # 开启性能分析组件
+    # app.wsgi_app = ProfilerMiddleware(app.wsgi_app, restrictions=(10,))
     return app
 
 
