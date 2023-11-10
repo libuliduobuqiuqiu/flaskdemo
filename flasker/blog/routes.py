@@ -5,8 +5,10 @@
     :description: About Blog Page
 """
 from flasker.auth import login_required
-from flask import Blueprint, g, url_for
+from flask import Blueprint, g, url_for, jsonify
 from flasker import app
+from .blog import handle_blog
+import asyncio
 
 
 bp = Blueprint("blog", __name__, url_prefix="/blog")
@@ -21,3 +23,9 @@ def login_failed(d):
 @login_required
 def person_blog_info():
     return f"<h1>This is {g.user.name} personal page.</h1>"
+
+
+@bp.route("/person/wait-time", methods=["GET"])
+async def wait_time():
+    await asyncio.sleep(2)
+    return jsonify({"code": 200, "message": "success"})
